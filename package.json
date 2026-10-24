@@ -1,6 +1,6 @@
 {
   "name": "@bushizhanghan/dsh-openfoam-doctor",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OpenFOAM case doctor for DeepSeek-Harness: parse controlDict/fvSchemes/fvSolution/blockMeshDict and boundary fields, catch the silent failures (steadyState with timeStep write, unbounded kEpsilon limiters, zero non-orthogonal correctors on skewed meshes, stray time dirs, log.checkMesh parsing), and run cases over WSL. OpenFOAM 算例医生：解析字典、查静默错误、跑算例、解日志。",
   "type": "module",
   "main": "lib/index.js",
