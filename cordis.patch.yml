@@ -1,0 +1,4 @@
+# dsh bundle layer: mount the openfoam-doctor plugin (lib/index.js).
+- insert:
+    - id: openfoam-doctor
+      name: '@bushizhanghan/dsh-openfoam-doctor'
