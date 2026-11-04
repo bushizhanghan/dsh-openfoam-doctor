@@ -1,6 +1,7 @@
 // Integration test: boot the plugin against a fake ctx and drive the tools
 // against the real SWR fixtures (no WSL needed for the read-only checks).
 import { apply } from '../lib/index.js'
+import { fileURLToPath } from 'node:url'
 
 const registry = new Map()
 const fakeCtx = { tools: { register: (t) => registry.set(t.name, t) } }
@@ -13,7 +14,7 @@ try {
   const expected = ['of_check', 'of_read_dict', 'of_list_cases', 'of_run', 'of_log', 'of_env']
   results.push([`${expected.length} tools registered`, expected.every((n) => registry.has(n))])
 
-  const dir = new URL('../fixtures/SWR/', import.meta.url).pathname.replace(/^\/([A-Za-z]):/, '$1:')
+  const dir = fileURLToPath(new URL('../fixtures/SWR/', import.meta.url))
 
   // 1. of_check on the real case
   const check = await call('of_check', { casePath: dir })
@@ -32,7 +33,7 @@ try {
   results.push(['of_read_dict reads 0/U boundaries', u.ok === true && Array.isArray(Object.keys(u.dict.boundaryField)) && Object.keys(u.dict.boundaryField).includes('inlet')])
 
   // 4. of_list_cases on the fixtures root
-  const list = await call('of_list_cases', { root: new URL('../fixtures/', import.meta.url).pathname.replace(/^\/([A-Za-z]):/, '$1:') })
+  const list = await call('of_list_cases', { root: fileURLToPath(new URL('../fixtures/', import.meta.url)) })
   results.push(['of_list_cases finds the fixture case', list.ok === true && list.cases.some((c) => c.name === 'SWR')])
   const swr = list.cases.find((c) => c.name === 'SWR')
   results.push(['case summary is correct', swr && swr.solver === 'foamRun' && swr.fields.includes('U') && swr.steady === true])

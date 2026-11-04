@@ -1,4 +1,5 @@
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
@@ -165,14 +166,14 @@ test('parseRunLog catches a fatal error', () => {
 
 test('strayTimeDirs ignores 0 and uniform', () => {
   // fixtures/SWR carries 0/ but no stray dirs, so it should be empty
-  const dir = new URL('../fixtures/SWR/', import.meta.url).pathname.replace(/^\/([A-Za-z]):/, '$1:')
+  const dir = fileURLToPath(new URL('../fixtures/SWR/', import.meta.url))
   const stray = strayTimeDirs(dir)
   assert.ok(Array.isArray(stray))
   assert.ok(!stray.includes('0'))
 })
 
 test('fieldFiles lists the scalar/vector fields in 0/', () => {
-  const dir = new URL('../fixtures/SWR/', import.meta.url).pathname.replace(/^\/([A-Za-z]):/, '$1:')
+  const dir = fileURLToPath(new URL('../fixtures/SWR/', import.meta.url))
   const fields = fieldFiles(dir)
   assert.ok(fields.includes('U'))
   assert.ok(fields.includes('k'))
@@ -189,7 +190,7 @@ test('path conversion round-trips', () => {
 
 test('the real SWR fixtures parse and yield the expected findings', async () => {
   const { checkCase } = await import('../lib/engine.js')
-  const dir = new URL('../fixtures/SWR/', import.meta.url).pathname.replace(/^\/([A-Za-z]):/, '$1:')
+  const dir = fileURLToPath(new URL('../fixtures/SWR/', import.meta.url))
   const findings = checkCase(dir)
   const rules = findings.map((f) => f.rule)
   // the limiter finding is the whole point of the plugin
