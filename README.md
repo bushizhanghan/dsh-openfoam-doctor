@@ -24,7 +24,7 @@ dsh plugin --profile desktop add @bushizhanghan/dsh-openfoam-doctor
 
 | 工具 | 作用 |
 |---|---|
-| `of_check` | 体检算例：27 类静默错误，每条带 `fix` 文案。可按字典范围查（controlDict/fvSchemes/fvSolution/blockMeshDict/boundaries/times） |
+| `of_check` | 体检算例：28 类静默错误，每条带 `fix` 文案。可按字典范围查（controlDict/fvSchemes/fvSolution/blockMeshDict/boundaries/times） |
 | `of_read_dict` | 把任意 OpenFOAM 字典读成 JSON——回答「writeInterval 是多少」「inlet 用什么 BC」不用开 WSL |
 | `of_list_cases` | 扫描目录列出所有算例：solver、稳态/瞬态、endTime、场文件、残留时间目录、有无 blockMesh/snappy |
 | `of_run` | 在 WSL 里跑命令：checkMesh、blockMesh、snappyHexMesh、foamRun（可 mpirun 并行）、decomposePar、foamToVTK 等（白名单制） |
@@ -53,6 +53,7 @@ dsh plugin --profile desktop add @bushizhanghan/dsh-openfoam-doctor
 | `buoyant-without-g` | 有 `0/p_rgh` 却没有 `constant/g` → 浮力项为 0，算出来像等温 |
 | `buoyant-g-dimensions` | `constant/g` 的 `dimensions` 不是 `[0 1 -2 0 0 0 0]` → 压力修正第一步才报错 |
 | `closed-domain-no-pref` | 全 `zeroGradient` 压力 + fvSolution 没 `pRefCell` → 矩阵奇异，压力整体飘 |
+| `write-never-fires` | `writeControl runTime` + `writeInterval` 比整个 run 还长 → 一个时间目录都不写，OpenFOAM 不报错 |
 
 ### 结构错误（直接崩）
 `missing-file`、`no-ddt`、`no-grad`、`no-laplacian`、`no-internal-field`、`no-boundary-field`、`block-vertex-mismatch`、`vertex-count`、`start-after-end`
@@ -86,7 +87,7 @@ checkMesh: cells 82238, non-orthogonality 69.98°, skewness 22.28 (734 faces), f
 ## 开发
 
 ```sh
-node --test    # 18 个测试（含真实算例 fixture）
+node --test    # 19 个测试（含真实算例 fixture）
 ```
 
 `fixtures/SWR/` 是从一台真机 WSL 里拷来的算例（controlDict / fvSchemes / fvSolution / 0/U / constant/polyMesh / log.foamRun），`fixtures/log.checkMesh.sample` 是真 checkMesh 输出——测试断言的就是这些真实文件，不是手写的玩具样本。

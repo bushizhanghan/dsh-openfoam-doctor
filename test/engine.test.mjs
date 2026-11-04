@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
+  checkControlDict,
   checkPhysics,
   num,
   parseCheckMesh,
@@ -267,6 +268,22 @@ function makeCase(files) {
   }
   return dir
 }
+
+test('checkControlDict catches a time-based writeInterval the run never reaches', () => {
+  const control = (writeControl, writeInterval) =>
+    `application icoFoam;\nstartTime 0;\nendTime 10;\ndeltaT 0.001;\nwriteControl ${writeControl};\nwriteInterval ${writeInterval};\n`
+  const never = makeCase({ 'system/controlDict': control('runTime', 50), 'system/fvSchemes': 'ddtSchemes { default Euler; }\n' })
+  const fires = makeCase({ 'system/controlDict': control('runTime', 2), 'system/fvSchemes': 'ddtSchemes { default Euler; }\n' })
+  const steps = makeCase({ 'system/controlDict': control('timeStep', 50), 'system/fvSchemes': 'ddtSchemes { default Euler; }\n' })
+  try {
+    assert.deepEqual(checkControlDict(never).map((f) => f.rule), ['write-never-fires'])
+    assert.deepEqual(checkControlDict(fires).map((f) => f.rule), [])
+    // timeStep is a step count, not seconds — 50 steps over 10 000 steps is fine
+    assert.ok(!checkControlDict(steps).some((f) => f.rule === 'write-never-fires'))
+  } finally {
+    for (const d of [never, fires, steps]) rmSync(d, { recursive: true, force: true })
+  }
+})
 
 test('checkPhysics flags a wall function on a laminar case', () => {
   const dir = makeCase({
