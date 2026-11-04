@@ -1,8 +1,11 @@
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import {
+  checkPhysics,
   num,
   parseCheckMesh,
   parseDict,
@@ -252,4 +255,68 @@ test('the real checkMesh log is parsed into the metrics that matter', () => {
   // volumes must not carry the trailing period of "Min volume = 1.4e-07. Max volume"
   assert.equal(num(m['min volume']), 1.3951e-7)
   assert.equal(num(m['max volume']), 0.00223393)
+})
+
+/** Build a throwaway case from {relativePath: text}. */
+function makeCase(files) {
+  const dir = mkdtempSync(join(tmpdir(), 'of-'))
+  for (const [rel, body] of Object.entries(files)) {
+    const p = join(dir, rel)
+    mkdirSync(join(p, '..'), { recursive: true })
+    writeFileSync(p, body)
+  }
+  return dir
+}
+
+test('checkPhysics flags a wall function on a laminar case', () => {
+  const dir = makeCase({
+    'constant/momentumTransport': 'simulationType laminar;\n',
+    '0/k': 'boundaryField { wall { type kqRWallFunction; value uniform 0; } }\n',
+  })
+  try {
+    assert.deepEqual(checkPhysics(dir).map((f) => f.rule), ['wall-function-on-laminar'])
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('checkPhysics flags p_rgh without constant/g, and a wrong g dimension', () => {
+  const noG = makeCase({ '0/p_rgh': 'internalField uniform 0;\n' })
+  const badG = makeCase({
+    '0/p_rgh': 'internalField uniform 0;\n',
+    'constant/g': 'dimensions [0 1 -1 0 0 0 0];\nvalue (0 -9.81 0);\n',
+  })
+  const okG = makeCase({
+    '0/p_rgh': 'internalField uniform 0;\n',
+    'constant/g': 'dimensions [0 1 -2 0 0 0 0];\nvalue (0 -9.81 0);\n',
+  })
+  try {
+    assert.deepEqual(checkPhysics(noG).map((f) => f.rule), ['buoyant-without-g'])
+    assert.deepEqual(checkPhysics(badG).map((f) => f.rule), ['buoyant-g-dimensions'])
+    assert.deepEqual(checkPhysics(okG), [])
+  } finally {
+    for (const d of [noG, badG, okG]) rmSync(d, { recursive: true, force: true })
+  }
+})
+
+test('checkPhysics flags a floating pressure level, and not a duct with an outlet', () => {
+  const closed = makeCase({
+    '0/p': 'boundaryField { left { type zeroGradient; } right { type zeroGradient; } }\n',
+    'system/fvSolution': 'solvers { p { solver GAMG; } }\n',
+  })
+  const duct = makeCase({
+    '0/p': 'boundaryField { inlet { type zeroGradient; } outlet { type fixedValue; value uniform 0; } }\n',
+    'system/fvSolution': 'solvers { p { solver GAMG; } }\n',
+  })
+  const referenced = makeCase({
+    '0/p': 'boundaryField { left { type zeroGradient; } right { type zeroGradient; } }\n',
+    'system/fvSolution': 'pRefCell 0;\npRefValue 0;\nsolvers { p { solver GAMG; } }\n',
+  })
+  try {
+    assert.deepEqual(checkPhysics(closed).map((f) => f.rule), ['closed-domain-no-pref'])
+    assert.deepEqual(checkPhysics(duct), [])
+    assert.deepEqual(checkPhysics(referenced), [])
+  } finally {
+    for (const d of [closed, duct, referenced]) rmSync(d, { recursive: true, force: true })
+  }
 })
