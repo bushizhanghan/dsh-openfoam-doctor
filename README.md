@@ -24,7 +24,7 @@ dsh plugin --profile desktop add @bushizhanghan/dsh-openfoam-doctor
 
 | 工具 | 作用 |
 |---|---|
-| `of_check` | 体检算例：25 类静默错误，每条带 `fix` 文案。可按字典范围查（controlDict/fvSchemes/fvSolution/blockMeshDict/boundaries/times） |
+| `of_check` | 体检算例：24 类静默错误，每条带 `fix` 文案。可按字典范围查（controlDict/fvSchemes/fvSolution/blockMeshDict/boundaries/times） |
 | `of_read_dict` | 把任意 OpenFOAM 字典读成 JSON——回答「writeInterval 是多少」「inlet 用什么 BC」不用开 WSL |
 | `of_list_cases` | 扫描目录列出所有算例：solver、稳态/瞬态、endTime、场文件、残留时间目录、有无 blockMesh/snappy |
 | `of_run` | 在 WSL 里跑命令：checkMesh、blockMesh、snappyHexMesh、foamRun（可 mpirun 并行）、decomposePar、foamToVTK 等（白名单制） |
@@ -38,7 +38,7 @@ dsh plugin --profile desktop add @bushizhanghan/dsh-openfoam-doctor
 |---|---|
 | `limiter-wide-open` | `limitedLinear 1` = 限幅器形同虚设 → 高雷诺壁面区负 k/epsilon，「跑完了但图不对」 |
 | `unbounded-scalar-advection` | `div(phi,k)` 等输运标量用无界 Gauss linear → 陡梯度处过冲 |
-| `unbounded-viscous` | `div((nuEff*dev2(T(grad(U)))))` 没 `bounded` → 斜网格壁面速度尖刺 |
+| `unbounded-viscous` | `div((nuEff*dev2(T(grad(U)))))` 没 `bounded` → 斜网格壁面速度尖刺。**这是 `info` 不是 `warn`**：OpenFOAM 11 官方 tutorial 自己就用无界形式，所以它是建议不是缺陷 |
 | `no-nonortho-correctors` | 斜网格上 `nNonOrthogonalCorrectors 0` → SIMPLE 残差平台，像不收敛其实是离散误差 |
 | `loose-tolerance` / `loose-reltol` | 线性求解容差太松 → 压力残差再也降不下去 |
 
@@ -82,7 +82,7 @@ checkMesh: cells 82238, non-orthogonality 69.98°, skewness 22.28 (734 faces), f
 ## 开发
 
 ```sh
-node --test test/    # 13 个单测（含真实算例 fixture）+ 11 项集成测试
+node --test    # 15 个测试（含真实算例 fixture）
 ```
 
 `fixtures/SWR/` 是从一台真机 WSL 里拷来的算例（controlDict / fvSchemes / fvSolution / 0/U / constant/polyMesh / log.foamRun），`fixtures/log.checkMesh.sample` 是真 checkMesh 输出——测试断言的就是这些真实文件，不是手写的玩具样本。

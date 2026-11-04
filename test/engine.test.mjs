@@ -106,6 +106,38 @@ functions
   assert.ok(String(p.probeLocations).includes('(3 0.5 0)'))
 })
 
+test('parseDict terminates on the inputs that used to hang it', () => {
+  // Each of these blocked the event loop forever, so no timeout could fire.
+  // A regression here freezes the whole host, not just this tool.
+  const started = Date.now()
+  assert.equal(parseDict('deltaT          ${dt};').deltaT, '${dt}')
+  assert.deepEqual(parseDict('foo\n}'), { foo: '' })
+  // #include as the last entry of a sub-dict must not eat the next key
+  const inc = parseDict(
+    `boundaryField
+{
+    movingWall
+    {
+        type            movingWallVelocity;
+        value           uniform (0 0 0);
+    }
+    #includeEtc "caseDicts/setConstraintTypes"
+    outlet
+    {
+        type            zeroGradient;
+    }
+}
+`,
+  )
+  assert.ok(inc.boundaryField.outlet, 'the entry after #include was swallowed')
+  assert.equal(inc.boundaryField.outlet.type, 'zeroGradient')
+  // $NAME and ${NAME} are single tokens, not a stall
+  const vars = parseDict('x $FOAM_CASE;\ny ${internalField};\n')
+  assert.equal(vars.x, '$FOAM_CASE')
+  assert.equal(vars.y, '${internalField}')
+  assert.ok(Date.now() - started < 2_000, 'parseDict is still slow enough to hang the host')
+})
+
 test('num parses OF numeric tokens', () => {
   assert.equal(num('3000'), 3000)
   assert.equal(num('1e-07'), 1e-7)
@@ -124,7 +156,7 @@ Mesh stats
     boundary patches: 6
 
 Check topology
-    Max aspect ratio: 4.3
+    Max aspect ratio = 4.3
     Mesh non-orthogonality Max: 63.2
     Max skewness = 1.84
 `
@@ -195,7 +227,12 @@ test('the real SWR fixtures parse and yield the expected findings', async () => 
   const rules = findings.map((f) => f.rule)
   // the limiter finding is the whole point of the plugin
   assert.ok(rules.includes('limiter-wide-open'), `expected limiter-wide-open, got ${rules.join(',')}`)
-  assert.ok(rules.includes('unbounded-viscous'))
+  // unbounded-viscous is advice, not a defect: every stock OF11 tutorial uses
+  // the unbounded form, so it must stay at info and must not inflate the
+  // warning count on a reference case.
+  const viscous = findings.find((f) => f.rule === 'unbounded-viscous')
+  assert.ok(viscous, 'expected the unbounded-viscous note')
+  assert.equal(viscous.severity, 'info')
   assert.ok(rules.includes('no-purge'))
   // and it must NOT cry wolf on a standard outlet fixedValue
   assert.ok(!rules.includes('p-fixed-value'), 'outlet fixedValue is legitimate')
